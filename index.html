@@ -1,0 +1,34 @@
+<!doctype html>
+<html>
+<head>
+    <script src="./zle.js"></script>
+</head>
+
+<center>
+
+<h1>ZLE programming language</h1>
+
+<textarea id="codearea" rows="13" cols="80"></textarea>
+<br/><br/>
+<button onclick="runCode()">Run</button>
+<br/><br/>
+<textarea id="output" disabled="1" rows="8" cols="80"></textarea>
+
+</center>
+
+<script>
+let outArea = document.getElementById('output');
+
+function runCode() {
+    outArea.value = '';
+    let code = document.getElementById('codearea').value;
+    zle.parseLines(code.split('\n'));
+    let err = zle.executeCode();
+    if (err !== null) alert(err);
+}
+function output(s) {
+    outArea.value += s + '\n';
+    outArea.scrollTop = outArea.scrollHeight
+}
+</script>
+
