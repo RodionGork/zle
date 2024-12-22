@@ -1,12 +1,16 @@
 <!doctype html>
-
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
 <style>
   body { font-family:sans-serif; }
   #dice { font-size:300%; font-weight:bold; font-family:monospace; }
   #stake { text-align:center; }
+  button,input { font-size:150%; }
 </style>
 <script src="../zle.js"></script>
-
+</head>
+<body>
 <center>
 
 <h1>Fair Dice Game</h1>
@@ -26,8 +30,10 @@
 <button onclick="cast(6)">6</button>
 </p>
 
-<p>You have $<span id="money">1000</span><br/>
-<span id="state"></span></p>
+<p><span id="state"></span>
+<br/><br/>
+You have $<span id="money">1000</span>
+</p>
 
 <p><i>Rules are simple: you select a number (1 to 6) and cast 3 dice.<br/>
 If any of the dice points equals your number, you win your stake
@@ -72,13 +78,11 @@ continue = 1; goto output
 
 cont:
 i = 0; s = 0
-exec "console.log", f[0] + ':' + f[1] + ':' + f[2]
 roll: push pc+1; goto cast
 goto _ <> d[i] & f[i] | 'rollstop'
 d[i]=_; s=s+1; goto rollnext
 rollstop: f[i]=0
 rollnext: i=i+1; goto i=3|'roll'
-exec "console.log", "rolled " + s
 continue = s>0
 
 output:
@@ -99,3 +103,5 @@ cast: exec "Math.random"; _ = (_*6+1) \\ 1; pop pc
 zle.parseLines(zlecode.split('\n'));
 
 </script>
+</body>
+</html>
