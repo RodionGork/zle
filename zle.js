@@ -6,8 +6,6 @@ var zle = {
 	labels: [],
 	vars: [],
 	relops: ['o=', 'o>', 'o<', 'o>=', 'o<=', 'o<>', 'o!=', 'o=='],
-	pc: 0,
-	stack: [],
 	bops: [],
 }
 
@@ -39,7 +37,7 @@ zle.parseLines = function(lines) {
                 }
             }
         } catch (err) {
-            console.log('Line #' + (i+1) + ":" + err.message);
+            alert('Line #' + (i+1) + ":" + err.message);
         }
     }
 }
@@ -49,7 +47,7 @@ zle.tokenize = function(line) {
     let res = [];
     while (1) {
         line = line.replace(/^\s+/, '');
-        if (!line.length) break;
+        if (!line.length || line[0] == '#') break;
         let type = 'e';
         let m = [];
         if (zle.strmatch(/^[a-z_][a-z_0-9\.]*/i, line, m)) {
@@ -61,8 +59,8 @@ zle.tokenize = function(line) {
             type = 'o';
         } else if (zle.strmatch(/^[,;:\(\)\[\]]/, line, m)) {
             type = 'p';
-        } else if (line[0] == '"') { //to be improved for escapes
-            let p = line.indexOf('"', 1);
+        } else if (line[0] == '"' || line[0] == '\'') { //to be improved for escapes
+            let p = line.indexOf(line[0], 1);
             if (p == -1) {
                 m[0] = 'Unclosed string literal';
             } else {
@@ -85,13 +83,15 @@ zle.takeStatement = function(tokens) {
     zle.expectTokenType(cmd, 'w', 'Command or Variable expected');
     cmd = zle.tokenBody(cmd);
     switch (cmd) {
-        case 'RETURN':
-            return [tokens.shift()];
         case 'GOTO':
-        case 'CALL':
             return zle.takeGo(tokens);
         case 'EXEC':
             return zle.takeExec(tokens);
+        case 'PUSH':
+        case 'POP':
+            return zle.takePushPop(tokens);
+        case 'END':
+            return [tokens.shift()];
         case 'LET':
             tokens.shift();
         default:
@@ -128,6 +128,16 @@ zle.takeAssign = function(tokens) {
     zle.expectToken(tokens, 'o=', 'Assignment operator expected');
     tokens.shift();
     return ['wLET', zle.takeExpr(tokens), v];
+}
+
+zle.takePushPop = function(tokens) {
+    let op = tokens.shift();
+    let res = [op, (op == 'wPOP') ? zle.takeLvalue(tokens) : zle.takeExpr(tokens)];
+    if (tokens.length && tokens[0] == 'p,') {
+        tokens.shift();
+        res.push(zle.takeExpr(tokens));
+    }
+    return res;
 }
 
 zle.takeLvalue = function(tokens) {
@@ -258,18 +268,20 @@ zle.throwLineError = function(msg) {
 
 zle.executeCode = function() {
     let lineNum = -1;
-    zle.pc = 0;
     zle.vars = [];
+    zle.vars.PC = 0
+    zle.vars.SP = 0
     try {
-        while (zle.pc < zle.code.length) {
-            lineNum = zle.sourceLineNums[zle.pc];
-            let stmt = zle.code[zle.pc++];
+        while (zle.vars.PC < zle.code.length) {
+            lineNum = zle.sourceLineNums[zle.vars.PC];
+            let stmt = zle.code[zle.vars.PC++];
             switch (stmt[0]) {
                 case 'LET': zle.execAssign(stmt); break;
-                case 'CALL': zle.stack.push(zle.pc);
                 case 'GOTO': zle.execGoto(stmt); break;
-                case 'RETURN': zle.pc = zle.stack.pop(); break;
                 case 'EXEC': zle.execExec(stmt); break;
+                case 'PUSH': zle.execPush(stmt); break;
+                case 'POP': zle.execPop(stmt); break;
+                case 'END': zle.vars.PC = zle.code.length; break;
                 default: zle.throwLineError('Command not implemented: ' + stmt[0]);
             }
         }
@@ -294,7 +306,7 @@ zle.execGoto = function(stmt) {
         if (typeof(label) == 'string') label = label.toUpperCase();
         target = zle.labels[label];
     }
-    if (target !== undefined) zle.pc = target;
+    if (target !== undefined) zle.vars.PC = target;
 }
 
 zle.execExec = function(stmt) {
@@ -305,6 +317,31 @@ zle.execExec = function(stmt) {
     let f = window;
     while (name.length) f = f[name.shift()];
     zle.vars['_'] = f(...args);
+}
+
+zle.execPush = function(stmt) {
+    let v = zle.evalExpr(stmt[1]);
+    zle.stackAccess(stmt, v);
+}
+
+zle.execPop = function(stmt) {
+    zle.setVariable(stmt[1], zle.stackAccess(stmt));
+}
+
+zle.stackAccess = function(stmt, v) {
+    let name = 'STACK';
+    let sp = 'SP';
+    if (stmt.length > 2) {
+        name = zle.evalExpr(stmt[2]).toUpperCase();
+        sp += '!' + name;
+    }
+    name += '!';
+    let spv = zle.vars[sp];
+    if (spv === undefined) spv = 0;
+    let old = zle.vars[name + (spv--)];
+    if (v !== undefined) zle.vars[name + (spv+=2)] = v;
+    zle.vars[sp] = spv;
+    return old;
 }
 
 zle.evalExpr = function(expr) {
