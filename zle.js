@@ -266,9 +266,9 @@ zle.throwLineError = function(msg) {
     throw new Error(msg);
 } 
 
-zle.executeCode = function() {
+zle.executeCode = function(preserve) {
     let lineNum = -1;
-    zle.vars = [];
+    if (!preserve) zle.vars = [];
     zle.vars.PC = 0
     zle.vars.SP = 0
     try {
