@@ -68,7 +68,10 @@ function runZle() {
 var zlecode = `
 goto continue & 'cont'
 
-goto stake=0|'stake.ok'
+goto stake*1>total*1|'stake.not.neg'
+exec "display", 'x x x', 'stake exceedes total money!', total; end
+stake.not.neg:
+goto stake<=0|'stake.ok'
 exec "display", '* * *', 'please, enter stake', total; end
 
 stake.ok:
@@ -93,7 +96,7 @@ res.count: s = s + (d[i] = choice); i=i+1; goto i=3|'res.count'
 goto s=0|'win'
 msg = 'You lost $' + stake; total = total*1-stake; goto finally
 win:
-msg = 'You win $' + (stake * s); total = total*1+stake*s
+msg = 'You won $' + (stake * s); total = total*1+stake*s
 finally:
 exec "display", d[0]+' '+d[1]+' '+d[2], msg, total; end
 
